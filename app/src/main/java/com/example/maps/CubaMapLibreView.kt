@@ -55,12 +55,13 @@ fun CubaMapLibreView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val tileServer = remember { MbtilesTileServer(context) }
-    val mapView = remember { MapView(context) }
-    var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
+    MapLibre.getInstance(context)
 
-    DisposableEffect(lifecycleOwner) {
-        MapLibre.getInstance(context)
+val tileServer = remember { MbtilesTileServer(context) }
+val mapView = remember { MapView(context) }
+var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
+
+DisposableEffect(lifecycleOwner) {
         if (tileServer.isMapDataAvailable()) {
             tileServer.openDatabase()
             runCatching { tileServer.start(NANO_TIMEOUT_MS, false) }
