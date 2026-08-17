@@ -2,6 +2,7 @@ package com.example
 
 import android.app.Application
 import android.content.ContentValues
+import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
 import java.io.PrintWriter
@@ -16,13 +17,21 @@ import java.util.Locale
  * carpeta pública de Descargas del teléfono, para poder verla con cualquier explorador de
  * archivos sin necesidad de ADB, logcat, ni conexión a una computadora.
  *
+ * El manejador se instala en attachBaseContext (no en onCreate) porque Firebase y otras
+ * librerías corren ContentProviders ANTES de Application.onCreate; si el crash ocurre ahí,
+ * onCreate nunca llega a ejecutarse.
+ *
  * Una vez resuelto el problema de arranque, esta clase y su registro en AndroidManifest.xml
  * (android:name=".CrashLoggingApplication") se pueden eliminar sin afectar el resto de la app.
  */
 class CrashLoggingApplication : Application() {
 
-    override fun onCreate() {
-        super.onCreate()
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        instalarManejador(base)
+    }
+
+    private fun instalarManejador(context: Context) {
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -37,7 +46,7 @@ class CrashLoggingApplication : Application() {
                     appendLine()
                     append(sw.toString())
                 }
-                guardarEnDescargas(texto)
+                guardarEnDescargas(context, texto)
             } catch (e: Exception) {
                 // Si falla el propio guardado, no bloqueamos el cierre normal de la app.
             }
@@ -45,11 +54,11 @@ class CrashLoggingApplication : Application() {
         }
     }
 
-    private fun guardarEnDescargas(contenido: String) {
+    private fun guardarEnDescargas(context: Context, contenido: String) {
         val nombre = "cuba_gps_crash_" +
             SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
 
-        val resolver = contentResolver
+        val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, nombre)
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
