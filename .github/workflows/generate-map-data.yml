@@ -31,7 +31,7 @@ jobs:
         run: wget -q -O planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
 
       - name: Generar cuba.mbtiles (mapa 3D)
-        run: java -Xmx6g -jar planetiler.jar --osm-path=cuba-latest.osm.pbf --output=cuba.mbtiles --force
+        run: java -Xmx6g -jar planetiler.jar --download --osm-path=cuba-latest.osm.pbf --output=cuba.mbtiles --force
 
       - name: Descargar GraphHopper
         run: wget -q -O graphhopper-web.jar https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/10.2/graphhopper-web-10.2.jar
