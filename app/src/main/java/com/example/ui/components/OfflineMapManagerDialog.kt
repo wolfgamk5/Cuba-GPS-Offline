@@ -19,8 +19,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.SdCard
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,6 +67,8 @@ fun OfflineMapManagerDialog(
     modifier: Modifier = Modifier
 ) {
     var allowMeteredData by remember { mutableStateOf(false) }
+    val isAllReady = hasOfflineMapData && isRealRoutingReady && hasRealPoiData
+    val isDownloading = downloadStatus is MapDownloadStatus.Downloading
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -112,43 +112,18 @@ fun OfflineMapManagerDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                if (downloadStatus is MapDownloadStatus.Downloading) {
-                    OverallDownloadProgress(status = downloadStatus)
+                // Barra de progreso global si está descargando
+                if (isDownloading) {
+                    OverallDownloadProgress(status = downloadStatus as MapDownloadStatus.Downloading)
                     Spacer(modifier = Modifier.height(14.dp))
                 }
 
-                DataItemStatus(
-                    icon = Icons.Default.Map,
-                    title = "Mapa 3D (calles, edificios, POIs)",
-                    isReady = hasOfflineMapData,
-                    isDownloading = downloadStatus is MapDownloadStatus.Downloading &&
-                        downloadStatus.phase == MapDataDownloadWorker.PHASE_MBTILES,
-                    percent = (downloadStatus as? MapDownloadStatus.Downloading)
-                        ?.takeIf { it.phase == MapDataDownloadWorker.PHASE_MBTILES }?.percent
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DataItemStatus(
-                    icon = Icons.Default.Route,
-                    title = "Rutas reales calle por calle (GraphHopper)",
-                    isReady = isRealRoutingReady,
-                    isDownloading = downloadStatus is MapDownloadStatus.Downloading &&
-                        (downloadStatus.phase == MapDataDownloadWorker.PHASE_GRAPH || downloadStatus.phase == MapDataDownloadWorker.PHASE_UNZIP),
-                    percent = (downloadStatus as? MapDownloadStatus.Downloading)
-                        ?.takeIf { it.phase == MapDataDownloadWorker.PHASE_GRAPH || it.phase == MapDataDownloadWorker.PHASE_UNZIP }?.percent
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DataItemStatus(
-                    icon = Icons.Default.Place,
-                    title = "Lugares de interés reales (hospitales, gasolineras, hoteles...)",
-                    isReady = hasRealPoiData,
-                    isDownloading = downloadStatus is MapDownloadStatus.Downloading &&
-                        downloadStatus.phase == MapDataDownloadWorker.PHASE_POIS,
-                    percent = (downloadStatus as? MapDownloadStatus.Downloading)
-                        ?.takeIf { it.phase == MapDataDownloadWorker.PHASE_POIS }?.percent
+                // Tarjeta unificada de estado del paquete de datos offline
+                PackageItemStatus(
+                    title = "Paquete completo offline (Mapa 3D, Rutas y POIs)",
+                    isReady = isAllReady,
+                    isDownloading = isDownloading,
+                    percent = (downloadStatus as? MapDownloadStatus.Downloading)?.percent
                 )
 
                 if (downloadStatus is MapDownloadStatus.Failed) {
@@ -161,7 +136,7 @@ fun OfflineMapManagerDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                if (!hasOfflineMapData || !isRealRoutingReady || !hasRealPoiData) {
+                if (!isAllReady) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = allowMeteredData,
@@ -176,7 +151,7 @@ fun OfflineMapManagerDialog(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    if (downloadStatus is MapDownloadStatus.Downloading) {
+                    if (isDownloading) {
                         OutlinedButton(
                             onClick = onCancelDownload,
                             modifier = Modifier.fillMaxWidth()
@@ -214,7 +189,7 @@ fun OfflineMapManagerDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (hasOfflineMapData && isRealRoutingReady && hasRealPoiData)
+                            text = if (isAllReady)
                                 "Todo listo: navegando 100% con datos reales de Cuba, sin conexión."
                             else
                                 "Si no tienes internet ahora, también puedes copiar los archivos manualmente por USB — ver SETUP_MAPA_OFFLINE.md.",
@@ -230,19 +205,12 @@ fun OfflineMapManagerDialog(
     }
 }
 
-/**
- * Barra de progreso general, bien visible, que aparece apenas se inicia la descarga (aunque
- * todavía esté "esperando_wifi" en 0%) y va subiendo de 0 a 100% en tiempo real según el
- * WorkManager reporta bytes descargados. Es independiente de las dos barras de detalle
- * (mapa / rutas) de más abajo, para que el usuario vea de un vistazo cuánto falta en total.
- */
 @Composable
 private fun OverallDownloadProgress(status: MapDownloadStatus.Downloading) {
     val label = when (status.phase) {
-        MapDataDownloadWorker.PHASE_MBTILES -> "Descargando mapa 3D…"
-        MapDataDownloadWorker.PHASE_GRAPH -> "Descargando rutas…"
-        MapDataDownloadWorker.PHASE_UNZIP -> "Preparando rutas offline…"
-        else -> "Esperando conexión para empezar…"
+        MapDataDownloadWorker.PHASE_DOWNLOAD_ZIP -> "Descargando paquete completo de Cuba…"
+        MapDataDownloadWorker.PHASE_UNZIP -> "Descomprimiendo archivos offline…"
+        else -> "Preparando descarga…"
     }
 
     Surface(
@@ -285,8 +253,7 @@ private fun OverallDownloadProgress(status: MapDownloadStatus.Downloading) {
 }
 
 @Composable
-private fun DataItemStatus(
-    icon: ImageVector,
+private fun PackageItemStatus(
     title: String,
     isReady: Boolean,
     isDownloading: Boolean,
@@ -305,7 +272,7 @@ private fun DataItemStatus(
                         .background(NavCyan.copy(alpha = 0.15f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(icon, contentDescription = null, tint = NavCyan, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Map, contentDescription = null, tint = NavCyan, modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -316,7 +283,7 @@ private fun DataItemStatus(
                     Text(
                         text = when {
                             isReady -> "Listo, disponible sin conexión"
-                            isDownloading -> "Descargando… ${percent ?: 0}%"
+                            isDownloading -> "Descargando y extrayendo… ${percent ?: 0}%"
                             else -> "No descargado todavía"
                         },
                         style = MaterialTheme.typography.bodySmall.copy(
@@ -327,14 +294,6 @@ private fun DataItemStatus(
                 if (isReady) {
                     Icon(Icons.Default.CheckCircle, contentDescription = "Listo", tint = NavEmerald, modifier = Modifier.size(22.dp))
                 }
-            }
-            if (isDownloading) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { (percent ?: 0) / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = NavCyan
-                )
             }
         }
     }
