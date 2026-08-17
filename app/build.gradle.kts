@@ -140,10 +140,8 @@ dependencies {
   // Servidor HTTP local embebido que sirve tiles .mbtiles al MapView (100% offline, sin red)
   implementation(libs.nanohttpd)
   // Motor de rutas real calle-por-calle sobre el grafo completo de OSM de Cuba
-  implementation(libs.graphhopper.core) {
-    // La API de ruteo/servidor web no se usa en el teléfono, solo el motor embebido
-    exclude(group = "com.graphhopper", module = "graphhopper-web-api")
-  }
+  implementation(libs.graphhopper.core)
+  implementation("com.graphhopper:graphhopper-web-api:10.2")
   coreLibraryDesugaring(libs.android.desugar.jdk.libs)
   implementation(libs.androidx.work.runtime.ktx)
   testImplementation(libs.androidx.compose.ui.test.junit4)
