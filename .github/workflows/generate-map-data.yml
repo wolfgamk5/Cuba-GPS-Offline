@@ -43,8 +43,14 @@ jobs:
             graph.location: graph-cache
             profiles:
               - name: car
-                vehicle: car
-                weighting: fastest
+                custom_model:
+                  priority:
+                    - if: "!car_access"
+                      multiply_by: "0"
+                  speed:
+                    - if: "true"
+                      limit_to: "car_average_speed"
+                  distance_influence: 200
           EOF
 
       - name: Generar graph-cache (rutas reales calle por calle)
