@@ -1,8 +1,5 @@
-Name: Compilar APK
+name: Compilar APK
 
-# Se ejecuta solo cuando tú lo pidas desde la pestaña "Actions" de GitHub (botón "Run
-# workflow"). Así puedes generar la APK sin tener una computadora ni Android Studio: todo
-# corre en los servidores gratuitos de GitHub y al final descargas el archivo listo.
 on:
   workflow_dispatch:
 
@@ -30,11 +27,6 @@ jobs:
       - name: Generar debug.keystore
         run: keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-      # Opcional: si ya generaste cuba.mbtiles / graph-cache.zip con el workflow
-      # "Generar mapa y rutas de Cuba" y configuraste las Variables del repositorio
-      # (Settings > Secrets and variables > Actions > Variables), esas URLs quedan
-      # incluidas en la APK. Si no las configuraste, la app compila igual, solo que
-      # arranca sin datos offline hasta que las descargues (o los generes).
       - name: Preparar download.properties
         run: |
           echo "CUBA_MBTILES_URL=${{ vars.CUBA_MBTILES_URL }}" >> download.properties
