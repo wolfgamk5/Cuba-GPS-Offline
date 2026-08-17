@@ -22,10 +22,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Instalar Gradle 9.1.0
+      - name: Instalar Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.1.0'
+          gradle-version: '9.3.1'
 
       # Opcional: si ya generaste cuba.mbtiles / graph-cache.zip con el workflow
       # "Generar mapa y rutas de Cuba" y configuraste las Variables del repositorio
