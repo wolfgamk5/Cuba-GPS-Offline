@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.example.data.RouteResult
 import com.example.location.GpsLocationData
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -23,6 +24,12 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 import java.io.File
 
 /**
@@ -44,24 +51,27 @@ enum class CubaMapSource { LOCAL, ONLINE, NONE }
 
 private const val OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 
+private const val ROUTE_SOURCE_ID = "cuba-active-route-source"
+private const val ROUTE_LAYER_ID = "cuba-active-route-layer"
+
 @Composable
 fun CubaMapLibreView(
     userLocation: GpsLocationData,
     viewMode: CubaMapViewMode,
     mapSource: CubaMapSource,
+    activeRoute: RouteResult? = null,
     modifier: Modifier = Modifier,
     onMapReady: (MapLibreMap) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    MapLibre.getInstance(context)
+    val tileServer = remember { MbtilesTileServer(context) }
+    val mapView = remember { MapView(context) }
+    var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
 
-val tileServer = remember { MbtilesTileServer(context) }
-val mapView = remember { MapView(context) }
-var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
-
-DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner) {
+        MapLibre.getInstance(context)
         if (tileServer.isMapDataAvailable()) {
             tileServer.openDatabase()
             runCatching { tileServer.start(NANO_TIMEOUT_MS, false) }
@@ -101,14 +111,25 @@ DisposableEffect(lifecycleOwner) {
     )
 
     // Aplica (o cambia sobre la marcha) el estilo según la fuente activa: local si ya se
-    // descargó el mapa de Cuba, online (OpenFreeMap) si no, mientras haya internet.
+    // descargó el mapa de Cuba, online (OpenFreeMap) si no, mientras haya internet. Cada vez
+    // que el estilo termina de cargar, se vuelve a agregar la capa de la ruta activa (una
+    // "raya" bien visible marcando por dónde hay que ir), porque cambiar de estilo borra las
+    // capas que se hayan agregado sobre el estilo anterior.
     LaunchedEffect(mapLibreMap, mapSource) {
         val map = mapLibreMap ?: return@LaunchedEffect
+        val onStyleLoaded = Style.OnStyleLoaded { style -> addOrUpdateRouteLayer(style, activeRoute) }
         when (mapSource) {
-            CubaMapSource.LOCAL -> map.setStyle(buildLocalStyleJsonUri(context, tileServer))
-            CubaMapSource.ONLINE -> map.setStyle(OPENFREEMAP_STYLE_URL)
+            CubaMapSource.LOCAL -> map.setStyle(Style.Builder().fromUri(buildLocalStyleJsonUri(context, tileServer)), onStyleLoaded)
+            CubaMapSource.ONLINE -> map.setStyle(Style.Builder().fromUri(OPENFREEMAP_STYLE_URL), onStyleLoaded)
             CubaMapSource.NONE -> Unit
         }
+    }
+
+    // Actualiza la línea de la ruta activa en el mapa cada vez que cambia (nueva ruta
+    // calculada, o se llega a un tramo distinto) — sin necesidad de recargar el estilo.
+    LaunchedEffect(mapLibreMap, activeRoute) {
+        val style = mapLibreMap?.style ?: return@LaunchedEffect
+        addOrUpdateRouteLayer(style, activeRoute)
     }
 
     LaunchedEffect(userLocation, viewMode) {
@@ -126,6 +147,37 @@ DisposableEffect(lifecycleOwner) {
         }
         map.easeCamera(CameraUpdateFactory.newCameraPosition(camera), 600)
     }
+}
+
+/**
+ * Dibuja la ruta activa como una línea gruesa y bien visible sobre el mapa real (no el Canvas
+ * de respaldo) — el camino por el que hay que ir, marcado sobre las calles reales. Si ya existe
+ * la capa (por ejemplo, se recalculó la ruta), solo se actualizan sus coordenadas; si el estilo
+ * se acaba de cargar (o cambió de local a online, o viceversa), se crea de nuevo porque cambiar
+ * de estilo elimina las capas agregadas sobre el estilo anterior.
+ */
+private fun addOrUpdateRouteLayer(style: Style, route: RouteResult?) {
+    val points = route?.polyline?.map { Point.fromLngLat(it.lon, it.lat) } ?: emptyList()
+    val geometry = if (points.size >= 2) LineString.fromLngLats(points) else null
+
+    val existingSource = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)
+    if (existingSource != null) {
+        existingSource.setGeoJson(geometry)
+        return
+    }
+
+    if (geometry == null) return
+
+    style.addSource(GeoJsonSource(ROUTE_SOURCE_ID, geometry))
+    style.addLayer(
+        LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
+            PropertyFactory.lineColor("#00E5FF"),
+            PropertyFactory.lineWidth(6f),
+            PropertyFactory.lineOpacity(0.9f),
+            PropertyFactory.lineCap(org.maplibre.android.style.layers.Property.LINE_CAP_ROUND),
+            PropertyFactory.lineJoin(org.maplibre.android.style.layers.Property.LINE_JOIN_ROUND)
+        )
+    )
 }
 
 private fun buildLocalStyleJsonUri(context: Context, tileServer: MbtilesTileServer): String {

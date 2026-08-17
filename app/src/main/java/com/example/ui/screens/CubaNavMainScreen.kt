@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.SdCard
-import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.FloatingActionButton
@@ -77,7 +76,6 @@ import com.example.ui.components.CubaMapCanvas
 import com.example.ui.components.NavigationSpeedometerCard
 import com.example.ui.components.NavigationTopBanner
 import com.example.ui.components.OfflineMapManagerDialog
-import com.example.ui.components.PlayStoreGuideDialog
 import com.example.ui.components.PoiExplorerDialog
 import com.example.ui.components.RoutePlannerCard
 import com.example.ui.components.RouteStepsDialog
@@ -154,6 +152,7 @@ fun CubaNavMainScreen(
                     userLocation = locationData,
                     viewMode = mapViewMode,
                     mapSource = mapSource,
+                    activeRoute = uiState.activeRoute,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -287,20 +286,6 @@ fun CubaNavMainScreen(
                     )
                 }
 
-                // Google Play Store Guide & Architecture Spec
-                SmallFloatingActionButton(
-                    onClick = { viewModel.openPlayStoreGuideDialog() },
-                    containerColor = NavSurfaceBlue,
-                    contentColor = NavEmerald,
-                    shape = CircleShape,
-                    modifier = Modifier.testTag("fab_open_guide")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Shop,
-                        contentDescription = "Guía Play Store"
-                    )
-                }
-
                 // Night Mode Toggle
                 SmallFloatingActionButton(
                     onClick = { viewModel.toggleNightMode() },
@@ -370,7 +355,6 @@ fun CubaNavMainScreen(
                         onSwapPoints = { viewModel.swapOriginAndDestination() },
                         onCalculateRoute = { viewModel.calculateRoute() },
                         onStartNavigation = { viewModel.startRealNavigation() },
-                        onStartSimulation = { viewModel.startSimulation() },
                         onViewSteps = { viewModel.openStepsDialog() }
                     )
                 }
@@ -394,12 +378,6 @@ fun CubaNavMainScreen(
                     onStartDownload = { allowMetered -> viewModel.startMapDataDownload(allowMetered) },
                     onCancelDownload = { viewModel.cancelMapDataDownload() },
                     onDismiss = { viewModel.closeOfflineMapsDialog() }
-                )
-            }
-
-            if (uiState.showPlayStoreGuideDialog) {
-                PlayStoreGuideDialog(
-                    onDismiss = { viewModel.closePlayStoreGuideDialog() }
                 )
             }
 
