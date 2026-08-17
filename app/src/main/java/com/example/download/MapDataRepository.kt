@@ -28,6 +28,8 @@ class MapDataRepository(private val context: Context) {
 
     fun isMbtilesReady(): Boolean = File(mapsDir, "cuba.mbtiles").let { it.exists() && it.length() > 0 }
 
+    fun isPoisReady(): Boolean = File(mapsDir, "pois.sqlite").let { it.exists() && it.length() > 0 }
+
     fun isGraphCacheReady(): Boolean {
         val dir = File(mapsDir, "graph-cache")
         return dir.exists() && dir.isDirectory && (dir.listFiles()?.isNotEmpty() == true)

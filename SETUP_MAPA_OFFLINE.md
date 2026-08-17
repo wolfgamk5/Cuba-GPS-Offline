@@ -163,6 +163,18 @@ Si dejas `download.properties` vacío o no lo creas, el botón de descarga simpl
 aparece y sigue funcionando la opción de copiar los archivos manualmente por USB (Fase 1
 y 2 de esta guía).
 
+## 6.1. Fase 5 — Buscador de puntos de interés reales (ya integrada)
+
+El explorador de lugares (🔍 dentro de la app) ahora busca en una base real extraída de
+OpenStreetMap (`pois.sqlite`) — hospitales, gasolineras, farmacias, hoteles, restaurantes,
+bancos, talleres y puntos turísticos de todo el país, en vez de los 38 lugares escritos a
+mano. Se genera automáticamente junto con `cuba.mbtiles` y `graph-cache` al correr el
+workflow **"Generar mapa y rutas de Cuba"** (sección 0), y se descarga igual que los otros
+dos (Fase 3) o se copia a mano por USB (mismo lugar: `.../files/maps/pois.sqlite`).
+
+Si no está descargado todavía, la app sigue funcionando con la lista curada de 38 lugares
+como respaldo — mismo patrón que el mapa y las rutas.
+
 ## 7. Modo online (funciona con o sin datos descargados)
 
 **Mapa online — ya funciona, sin que hagas nada:** si el teléfono tiene internet pero

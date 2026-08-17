@@ -379,6 +379,8 @@ fun CubaNavMainScreen(
             // 5. Dialog Overlays
             if (uiState.showPoiDialog) {
                 PoiExplorerDialog(
+                    hasRealPoiData = uiState.hasRealPoiData,
+                    onSearchReal = { query, category -> viewModel.searchRealPois(query, category) },
                     onDismiss = { viewModel.closePoiDialog() },
                     onSelectPoiAsDestination = { poi ->
                         viewModel.setDestinationFromPoi(poi)
@@ -390,6 +392,7 @@ fun CubaNavMainScreen(
                 OfflineMapManagerDialog(
                     hasOfflineMapData = uiState.hasOfflineMapData,
                     isRealRoutingReady = uiState.isRealRoutingReady,
+                    hasRealPoiData = uiState.hasRealPoiData,
                     downloadStatus = uiState.downloadStatus,
                     onStartDownload = { allowMetered -> viewModel.startMapDataDownload(allowMetered) },
                     onCancelDownload = { viewModel.cancelMapDataDownload() },

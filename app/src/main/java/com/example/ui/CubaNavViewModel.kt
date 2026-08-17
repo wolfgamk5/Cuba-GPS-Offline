@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.CubaGeographyData
 import com.example.data.GeoPoint
 import com.example.data.PointOfInterest
+import com.example.data.PoiCategory
+import com.example.data.PoiRepository
 import com.example.data.RouteResult
 import com.example.data.RouteStep
 import com.example.data.local.NavDatabase
@@ -46,6 +48,7 @@ data class CubaNavUiState(
     val showPlayStoreGuideDialog: Boolean = false,
     val showStepsDialog: Boolean = false,
     val isRealRoutingReady: Boolean = false,
+    val hasRealPoiData: Boolean = false,
     val hasOfflineMapData: Boolean = false,
     val downloadStatus: MapDownloadStatus = MapDownloadStatus.NotStarted,
     val isOnline: Boolean = false
@@ -61,6 +64,7 @@ class CubaNavViewModel(application: Application) : AndroidViewModel(application)
     private val onlineRoutingEngine = OnlineRoutingEngine()
     private val networkMonitor = NetworkMonitor(application)
     private val mapDataRepository = MapDataRepository(application)
+    private val poiRepository = PoiRepository(application)
     val locationTracker = LocationTracker(application)
     val voiceManager = VoiceNavigationManager(application)
     private val db = NavDatabase.getDatabase(application)
@@ -90,9 +94,17 @@ class CubaNavViewModel(application: Application) : AndroidViewModel(application)
                     _uiState.update { it.copy(hasOfflineMapData = mapDataRepository.isMbtilesReady()) }
                     val ready = withContext(Dispatchers.IO) { graphHopperEngine.load() }
                     _uiState.update { it.copy(isRealRoutingReady = ready) }
+                    val poisReady = withContext(Dispatchers.IO) { poiRepository.open() }
+                    _uiState.update { it.copy(hasRealPoiData = poisReady) }
                     calculateRoute()
                 }
             }
+        }
+
+        // Abrir la base de POIs reales si ya estaba descargada de una sesión anterior.
+        viewModelScope.launch {
+            val poisReady = withContext(Dispatchers.IO) { poiRepository.open() }
+            _uiState.update { it.copy(hasRealPoiData = poisReady) }
         }
 
         // Carga del grafo GraphHopper en segundo plano (operación de disco, nunca en el hilo
@@ -293,5 +305,13 @@ class CubaNavViewModel(application: Application) : AndroidViewModel(application)
         locationTracker.cleanup()
         voiceManager.shutdown()
         graphHopperEngine.close()
+        poiRepository.close()
+    }
+
+    /** Busca puntos de interés reales (OSM) si ya están descargados; si no, null para que
+     *  la pantalla llamante use la lista curada de respaldo. Llamar fuera del hilo principal. */
+    suspend fun searchRealPois(query: String, category: PoiCategory?): List<PointOfInterest>? {
+        if (!_uiState.value.hasRealPoiData) return null
+        return withContext(Dispatchers.IO) { poiRepository.search(query, category) }
     }
 }

@@ -9,6 +9,7 @@
 
 CUBA_MBTILES_URL=https://ejemplo.com/cuba.mbtiles
 CUBA_GRAPH_CACHE_ZIP_URL=https://ejemplo.com/graph-cache.zip
+CUBA_POIS_SQLITE_URL=https://ejemplo.com/pois.sqlite
 
 # Opcional (Fase 4) — tu propio servidor de rutas compatible con la API de OSRM. Déjalo
 # vacío si no quieres modo de rutas online (la app funciona igual, ver SETUP_MAPA_OFFLINE.md).

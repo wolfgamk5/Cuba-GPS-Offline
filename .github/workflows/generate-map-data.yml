@@ -75,6 +75,102 @@ jobs:
       - name: Comprimir graph-cache
         run: zip -rq graph-cache.zip graph-cache
 
+      - name: Instalar osmium-tool (extracción de puntos de interés)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+
+      - name: Filtrar solo elementos con etiquetas de POI
+        # De todo el .osm.pbf nos quedamos solo con nodos/vías/relaciones que tengan alguna
+        # de estas etiquetas (hospitales, gasolineras, hoteles, restaurantes, etc.) — reduce
+        # muchísimo el tamaño antes de procesar.
+        run: |
+          osmium tags-filter -o pois-raw.pbf cuba-latest.osm.pbf \
+            nwr/amenity nwr/shop=car_repair nwr/tourism nwr/healthcare \
+            nwr/office=financial nwr/craft=car_repair
+
+      - name: Exportar POIs a GeoJSON (con centroide para edificios/áreas)
+        run: osmium export pois-raw.pbf -o pois.geojson --geometry-types=point -f geojson --overwrite
+
+      - name: Convertir a base de datos SQLite para búsqueda en la app
+        run: |
+          cat > build_pois_db.py << 'PYEOF'
+          import json, sqlite3, sys
+
+          # Mapeo de etiquetas de OpenStreetMap a las categorías que ya usa la app
+          # (com.example.data.PoiCategory) — el nombre debe coincidir exactamente.
+          def map_category(tags):
+              amenity = tags.get("amenity", "")
+              shop = tags.get("shop", "")
+              tourism = tags.get("tourism", "")
+              healthcare = tags.get("healthcare", "")
+              craft = tags.get("craft", "")
+              office = tags.get("office", "")
+              if amenity == "fuel":
+                  return "GASOLINERA"
+              if amenity in ("hospital", "clinic", "doctors") or healthcare:
+                  return "HOSPITAL"
+              if tourism in ("hotel", "guest_house", "hostel", "motel", "camp_site", "chalet"):
+                  return "HOTEL_CAMPISMO"
+              if shop == "car_repair" or craft == "car_repair" or amenity == "car_wash":
+                  return "TALLER_PONCHERA"
+              if amenity == "pharmacy":
+                  return "FARMACIA"
+              if amenity in ("bus_station", "ferry_terminal"):
+                  return "TRANSPORTE"
+              if tourism in ("attraction", "museum", "viewpoint", "gallery", "artwork", "zoo"):
+                  return "TURISMO"
+              if amenity == "bank" or amenity == "atm" or office == "financial":
+                  return "BANCO_CAJERO"
+              if amenity in ("restaurant", "cafe", "fast_food", "bar", "pub", "food_court"):
+                  return "GASTRONOMIA"
+              return None
+
+          con = sqlite3.connect("pois.sqlite")
+          cur = con.cursor()
+          cur.execute("""
+              CREATE TABLE poi (
+                  id INTEGER PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  category TEXT NOT NULL,
+                  lat REAL NOT NULL,
+                  lon REAL NOT NULL,
+                  address TEXT NOT NULL DEFAULT ''
+              )
+          """)
+          cur.execute("CREATE INDEX idx_poi_name ON poi(name COLLATE NOCASE)")
+          cur.execute("CREATE INDEX idx_poi_category ON poi(category)")
+
+          count = 0
+          with open("pois.geojson", encoding="utf-8") as f:
+              data = json.load(f)
+
+          rows = []
+          for feature in data.get("features", []):
+              tags = feature.get("properties", {}) or {}
+              name = tags.get("name")
+              if not name:
+                  continue
+              category = map_category(tags)
+              if category is None:
+                  continue
+              geom = feature.get("geometry") or {}
+              coords = geom.get("coordinates")
+              if not coords or len(coords) != 2:
+                  continue
+              lon, lat = coords[0], coords[1]
+              addr_parts = [tags.get("addr:street", ""), tags.get("addr:city", "")]
+              address = ", ".join(p for p in addr_parts if p)
+              rows.append((name, category, lat, lon, address))
+
+          cur.executemany(
+              "INSERT INTO poi (name, category, lat, lon, address) VALUES (?, ?, ?, ?, ?)",
+              rows
+          )
+          con.commit()
+          con.close()
+          print(f"POIs guardados: {len(rows)}")
+          PYEOF
+          python3 build_pois_db.py
+
       - name: Publicar como Release descargable
         uses: softprops/action-gh-release@v2
         with:
@@ -83,5 +179,6 @@ jobs:
           files: |
             cuba.mbtiles
             graph-cache.zip
+            pois.sqlite
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

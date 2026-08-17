@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.SdCard
 import androidx.compose.material3.Button
@@ -60,6 +61,7 @@ import com.example.ui.theme.NavSurfaceBlue
 fun OfflineMapManagerDialog(
     hasOfflineMapData: Boolean,
     isRealRoutingReady: Boolean,
+    hasRealPoiData: Boolean,
     downloadStatus: MapDownloadStatus,
     onStartDownload: (allowMeteredData: Boolean) -> Unit,
     onCancelDownload: () -> Unit,
@@ -137,6 +139,18 @@ fun OfflineMapManagerDialog(
                         ?.takeIf { it.phase == MapDataDownloadWorker.PHASE_GRAPH || it.phase == MapDataDownloadWorker.PHASE_UNZIP }?.percent
                 )
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DataItemStatus(
+                    icon = Icons.Default.Place,
+                    title = "Lugares de interés reales (hospitales, gasolineras, hoteles...)",
+                    isReady = hasRealPoiData,
+                    isDownloading = downloadStatus is MapDownloadStatus.Downloading &&
+                        downloadStatus.phase == MapDataDownloadWorker.PHASE_POIS,
+                    percent = (downloadStatus as? MapDownloadStatus.Downloading)
+                        ?.takeIf { it.phase == MapDataDownloadWorker.PHASE_POIS }?.percent
+                )
+
                 if (downloadStatus is MapDownloadStatus.Failed) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
@@ -147,7 +161,7 @@ fun OfflineMapManagerDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                if (!hasOfflineMapData || !isRealRoutingReady) {
+                if (!hasOfflineMapData || !isRealRoutingReady || !hasRealPoiData) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = allowMeteredData,
@@ -200,7 +214,7 @@ fun OfflineMapManagerDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (hasOfflineMapData && isRealRoutingReady)
+                            text = if (hasOfflineMapData && isRealRoutingReady && hasRealPoiData)
                                 "Todo listo: navegando 100% con datos reales de Cuba, sin conexión."
                             else
                                 "Si no tienes internet ahora, también puedes copiar los archivos manualmente por USB — ver SETUP_MAPA_OFFLINE.md.",

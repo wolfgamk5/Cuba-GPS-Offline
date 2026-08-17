@@ -34,6 +34,7 @@ android {
 
     buildConfigField("String", "CUBA_MBTILES_URL", "\"${downloadProps.getProperty("CUBA_MBTILES_URL", "")}\"")
     buildConfigField("String", "CUBA_GRAPH_CACHE_ZIP_URL", "\"${downloadProps.getProperty("CUBA_GRAPH_CACHE_ZIP_URL", "")}\"")
+    buildConfigField("String", "CUBA_POIS_SQLITE_URL", "\"${downloadProps.getProperty("CUBA_POIS_SQLITE_URL", "")}\"")
     // Servidor propio compatible con la API de OSRM para rutas online (Fase 4). Vacío por
     // defecto a propósito — ver OnlineRoutingEngine.kt para la explicación.
     buildConfigField("String", "ONLINE_ROUTING_BASE_URL", "\"${downloadProps.getProperty("ONLINE_ROUTING_BASE_URL", "")}\"")

@@ -46,7 +46,8 @@ class MapDataDownloadWorker(
 
         val mbtilesUrl = BuildConfig.CUBA_MBTILES_URL
         val graphZipUrl = BuildConfig.CUBA_GRAPH_CACHE_ZIP_URL
-        if (mbtilesUrl.isBlank() && graphZipUrl.isBlank()) {
+        val poisUrl = BuildConfig.CUBA_POIS_SQLITE_URL
+        if (mbtilesUrl.isBlank() && graphZipUrl.isBlank() && poisUrl.isBlank()) {
             return Result.failure(workDataOf(KEY_ERROR to "No hay URLs configuradas (download.properties vacío)"))
         }
 
@@ -63,6 +64,13 @@ class MapDataDownloadWorker(
                 downloadWithResume(url = graphZipUrl, destFile = zipFile, phase = PHASE_GRAPH)
                 unzip(zipFile, File(mapsDir, "graph-cache"), phase = PHASE_UNZIP)
                 zipFile.delete()
+            }
+            if (poisUrl.isNotBlank()) {
+                downloadWithResume(
+                    url = poisUrl,
+                    destFile = File(mapsDir, "pois.sqlite"),
+                    phase = PHASE_POIS
+                )
             }
         } catch (e: Exception) {
             return Result.retry() // WorkManager reintentará cuando vuelva la red (ver constraints)
@@ -148,6 +156,7 @@ class MapDataDownloadWorker(
             PHASE_MBTILES -> "Descargando mapa 3D de Cuba…"
             PHASE_GRAPH -> "Descargando datos de rutas…"
             PHASE_UNZIP -> "Preparando rutas offline…"
+            PHASE_POIS -> "Descargando lugares de interés…"
             else -> "Descargando…"
         }
         setForeground(buildForegroundInfo("$label $percent%", percent))
@@ -188,5 +197,6 @@ class MapDataDownloadWorker(
         const val PHASE_MBTILES = "mbtiles"
         const val PHASE_GRAPH = "graph"
         const val PHASE_UNZIP = "unzip"
+        const val PHASE_POIS = "pois"
     }
 }

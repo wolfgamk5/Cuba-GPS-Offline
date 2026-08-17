@@ -39,6 +39,7 @@ jobs:
         run: |
           echo "CUBA_MBTILES_URL=${{ vars.CUBA_MBTILES_URL }}" >> download.properties
           echo "CUBA_GRAPH_CACHE_ZIP_URL=${{ vars.CUBA_GRAPH_CACHE_ZIP_URL }}" >> download.properties
+          echo "CUBA_POIS_SQLITE_URL=${{ vars.CUBA_POIS_SQLITE_URL }}" >> download.properties
           echo "ONLINE_ROUTING_BASE_URL=${{ vars.ONLINE_ROUTING_BASE_URL }}" >> download.properties
 
       - name: Compilar APK de depuración

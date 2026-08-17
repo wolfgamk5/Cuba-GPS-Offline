@@ -45,6 +45,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,12 +72,21 @@ import com.example.ui.theme.NavSurfaceBlue
 fun PoiExplorerDialog(
     onDismiss: () -> Unit,
     onSelectPoiAsDestination: (PointOfInterest) -> Unit,
+    hasRealPoiData: Boolean = false,
+    onSearchReal: suspend (query: String, category: PoiCategory?) -> List<PointOfInterest>? = { _, _ -> null },
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<PoiCategory?>(null) }
+    var realResults by remember { mutableStateOf<List<PointOfInterest>?>(null) }
 
-    val filteredPois = remember(searchQuery, selectedCategory) {
+    // Con datos reales de OSM: buscamos en la base descargada (miles de lugares en todo el
+    // país). Sin ellos: filtramos la lista curada de 38 lugares de respaldo, igual que antes.
+    LaunchedEffect(searchQuery, selectedCategory, hasRealPoiData) {
+        realResults = if (hasRealPoiData) onSearchReal(searchQuery, selectedCategory) else null
+    }
+
+    val filteredPois = realResults ?: remember(searchQuery, selectedCategory) {
         CubaGeographyData.POI_DATABASE.filter { poi ->
             val matchesCategory = selectedCategory == null || poi.category == selectedCategory
             val matchesQuery = searchQuery.isBlank() ||
@@ -162,7 +172,7 @@ fun PoiExplorerDialog(
                         FilterChip(
                             selected = selectedCategory == null,
                             onClick = { selectedCategory = null },
-                            label = { Text("Todos (${CubaGeographyData.POI_DATABASE.size})") },
+                            label = { Text(if (hasRealPoiData) "Todos" else "Todos (${CubaGeographyData.POI_DATABASE.size})") },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = NavCyan,
                                 selectedLabelColor = NavDeepBlue
