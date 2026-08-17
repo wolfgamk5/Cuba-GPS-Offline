@@ -141,7 +141,6 @@ dependencies {
   implementation(libs.nanohttpd)
   // Motor de rutas real calle-por-calle sobre el grafo completo de OSM de Cuba
   implementation(libs.graphhopper.core)
-  implementation("com.graphhopper:graphhopper-web-api:10.2")
   coreLibraryDesugaring(libs.android.desugar.jdk.libs)
   implementation(libs.androidx.work.runtime.ktx)
   testImplementation(libs.androidx.compose.ui.test.junit4)
