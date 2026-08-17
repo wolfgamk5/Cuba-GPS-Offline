@@ -14,10 +14,7 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
-  // URLs propias donde el usuario aloja cuba.mbtiles y graph-cache.zip (ver
-  // SETUP_MAPA_OFFLINE.md, Fase 3). Se leen de download.properties (no versionado) para no
-  // tener que tocar el código; si el archivo no existe, quedan vacías y la descarga
-  // automática simplemente no se ofrece (la app sigue funcionando con copia manual por USB).
+    // URL propia donde el usuario aloja el paquete ZIP completo de Cuba.
   val downloadProps = Properties().apply {
     val f = rootProject.file("download.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -32,9 +29,12 @@ android {
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-    buildConfigField("String", "CUBA_MBTILES_URL", "\"${downloadProps.getProperty("CUBA_MBTILES_URL", "")}\"")
-    buildConfigField("String", "CUBA_GRAPH_CACHE_ZIP_URL", "\"${downloadProps.getProperty("CUBA_GRAPH_CACHE_ZIP_URL", "")}\"")
-    buildConfigField("String", "CUBA_POIS_SQLITE_URL", "\"${downloadProps.getProperty("CUBA_POIS_SQLITE_URL", "")}\"")
+    // Única URL para el paquete ZIP completo (mapa 3D, rutas y POIs unificados)
+    buildConfigField("String", "CUBA_FULL_PACKAGE_URL", "\"${downloadProps.getProperty("CUBA_FULL_PACKAGE_URL", "")}\"")
+
+    // Servidor propio compatible con la API de OSRM para rutas online.
+    buildConfigField("String", "ONLINE_ROUTING_BASE_URL", "\"${downloadProps.getProperty("ONLINE_ROUTING_BASE_URL", "")}\"")
+
     // Servidor propio compatible con la API de OSRM para rutas online (Fase 4). Vacío por
     // defecto a propósito — ver OnlineRoutingEngine.kt para la explicación.
     buildConfigField("String", "ONLINE_ROUTING_BASE_URL", "\"${downloadProps.getProperty("ONLINE_ROUTING_BASE_URL", "")}\"")
