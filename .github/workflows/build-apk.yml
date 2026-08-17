@@ -1,0 +1,47 @@
+name: Compilar APK
+
+# Se ejecuta solo cuando tú lo pidas desde la pestaña "Actions" de GitHub (botón "Run
+# workflow"). Así puedes generar la APK sin tener una computadora ni Android Studio: todo
+# corre en los servidores gratuitos de GitHub y al final descargas el archivo listo.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Opcional: si ya generaste cuba.mbtiles / graph-cache.zip con el workflow
+      # "Generar mapa y rutas de Cuba" y configuraste las Variables del repositorio
+      # (Settings > Secrets and variables > Actions > Variables), esas URLs quedan
+      # incluidas en la APK. Si no las configuraste, la app compila igual, solo que
+      # arranca sin datos offline hasta que las descargues (o los generes).
+      - name: Preparar download.properties
+        run: |
+          echo "CUBA_MBTILES_URL=${{ vars.CUBA_MBTILES_URL }}" >> download.properties
+          echo "CUBA_GRAPH_CACHE_ZIP_URL=${{ vars.CUBA_GRAPH_CACHE_ZIP_URL }}" >> download.properties
+          echo "ONLINE_ROUTING_BASE_URL=${{ vars.ONLINE_ROUTING_BASE_URL }}" >> download.properties
+
+      - name: Dar permisos de ejecución a gradlew
+        run: chmod +x gradlew
+
+      - name: Compilar APK de depuración
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Subir la APK como resultado descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuba-gps-offline-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30

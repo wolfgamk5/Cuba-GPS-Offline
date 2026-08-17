@@ -1,0 +1,65 @@
+name: Generar mapa y rutas de Cuba
+
+# Manual, desde la pestaña "Actions" > este workflow > "Run workflow". Hace en la nube todo
+# lo que normalmente pedía una PC potente: descarga el mapa de OpenStreetMap de Cuba,
+# genera el mapa 3D (cuba.mbtiles) y las rutas reales (graph-cache), y los publica como
+# adjuntos de un "Release" de GitHub — con eso ya tienes URLs de descarga directa listas
+# para pegar en download.properties (Fase 3 de SETUP_MAPA_OFFLINE.md).
+#
+# Tarda varios minutos. Cuba es un país pequeño en datos de OSM (~60 MB el .osm.pbf), así
+# que entra sin problema en la memoria de los runners gratuitos de GitHub (7 GB de RAM).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # necesario para poder publicar el Release al final
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Descargar datos de OpenStreetMap de Cuba (Geofabrik)
+        run: wget -q -O cuba-latest.osm.pbf https://download.geofabrik.de/central-america/cuba-latest.osm.pbf
+
+      - name: Descargar Planetiler
+        run: wget -q -O planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+
+      - name: Generar cuba.mbtiles (mapa 3D)
+        run: java -Xmx6g -jar planetiler.jar --osm-path=cuba-latest.osm.pbf --output=cuba.mbtiles --force
+
+      - name: Descargar GraphHopper
+        run: wget -q -O graphhopper-web.jar https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/10.2/graphhopper-web-10.2.jar
+
+      - name: Crear configuración de GraphHopper
+        run: |
+          cat > gh-config.yml << 'EOF'
+          graphhopper:
+            graph.location: graph-cache
+            profiles:
+              - name: car
+                vehicle: car
+                weighting: fastest
+          EOF
+
+      - name: Generar graph-cache (rutas reales calle por calle)
+        run: java -Xmx6g -Ddw.graphhopper.datareader.file=cuba-latest.osm.pbf -jar graphhopper-web.jar import gh-config.yml
+
+      - name: Comprimir graph-cache
+        run: zip -rq graph-cache.zip graph-cache
+
+      - name: Publicar como Release descargable
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mapa-cuba-${{ github.run_number }}
+          name: Mapa y rutas de Cuba (generado automáticamente)
+          files: |
+            cuba.mbtiles
+            graph-cache.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
