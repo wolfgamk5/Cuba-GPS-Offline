@@ -108,15 +108,15 @@ fun OfflineMapManagerDialog(
                     }
                 }
 
-          Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-          if (downloadStatus is MapDownloadStatus.Downloading) {
-              OverallDownloadProgress(status = downloadStatus)
-              Spacer(modifier = Modifier.height(14.dp))
- }
+                if (downloadStatus is MapDownloadStatus.Downloading) {
+                    OverallDownloadProgress(status = downloadStatus)
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
 
-           DataItemStatus(
-               icon = Icons.Default.Map,
+                DataItemStatus(
+                    icon = Icons.Default.Map,
                     title = "Mapa 3D (calles, edificios, POIs)",
                     isReady = hasOfflineMapData,
                     isDownloading = downloadStatus is MapDownloadStatus.Downloading &&
@@ -212,6 +212,60 @@ fun OfflineMapManagerDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Barra de progreso general, bien visible, que aparece apenas se inicia la descarga (aunque
+ * todavía esté "esperando_wifi" en 0%) y va subiendo de 0 a 100% en tiempo real según el
+ * WorkManager reporta bytes descargados. Es independiente de las dos barras de detalle
+ * (mapa / rutas) de más abajo, para que el usuario vea de un vistazo cuánto falta en total.
+ */
+@Composable
+private fun OverallDownloadProgress(status: MapDownloadStatus.Downloading) {
+    val label = when (status.phase) {
+        MapDataDownloadWorker.PHASE_MBTILES -> "Descargando mapa 3D…"
+        MapDataDownloadWorker.PHASE_GRAPH -> "Descargando rutas…"
+        MapDataDownloadWorker.PHASE_UNZIP -> "Preparando rutas offline…"
+        else -> "Esperando conexión para empezar…"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = NavSurfaceBlue
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                )
+                Text(
+                    text = "${status.percent}%",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = NavCyan
+                    )
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { status.percent / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = NavCyan,
+                trackColor = NavSurfaceBlue.copy(alpha = 0.4f)
+            )
         }
     }
 }
