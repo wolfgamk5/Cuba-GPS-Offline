@@ -40,12 +40,11 @@ class MapDataDownloadWorker(
 
     private val mapsDir = File(applicationContext.getExternalFilesDir(null), "maps")
 
-        override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result {
         setForeground(buildForegroundInfo("Preparando descarga del paquete completo de Cuba…", 0))
         mapsDir.mkdirs()
 
-        // Cambiamos a una sola URL para el archivo ZIP unificado
-        val fullPackageUrl = BuildConfig.CUBA_FULL_PACKAGE_URL // Asegúrate de definir esto en tu build.gradle.kts / download.properties
+        val fullPackageUrl = BuildConfig.CUBA_FULL_PACKAGE_URL
         if (fullPackageUrl.isBlank()) {
             return Result.failure(workDataOf(KEY_ERROR to "No hay URL configurada para el paquete único (download.properties vacío)"))
         }
@@ -60,7 +59,6 @@ class MapDataDownloadWorker(
             )
 
             // 2. Descomprimir el paquete completo directamente en la carpeta 'maps'
-            // El ZIP debe contener adentro: cuba.mbtiles, pois.sqlite y la carpeta graph-cache/
             unzip(zipFile, mapsDir, phase = PHASE_UNZIP)
 
             // 3. Limpiar el archivo ZIP temporal descargado
@@ -189,3 +187,10 @@ class MapDataDownloadWorker(
 
         const val PHASE_DOWNLOAD_ZIP = "download_zip"
         const val PHASE_UNZIP = "unzip"
+        
+        // Constantes añadidas para que el switch de reportProgress no dé error de compilación
+        const val PHASE_MBTILES = "mbtiles"
+        const val PHASE_GRAPH = "graph"
+        const val PHASE_POIS = "pois"
+    }
+}
