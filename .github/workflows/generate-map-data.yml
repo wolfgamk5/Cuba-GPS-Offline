@@ -40,6 +40,7 @@ jobs:
         run: |
           cat > gh-config.yml << 'EOF'
           graphhopper:
+            datareader.file: cuba-latest.osm.pbf
             graph.location: graph-cache
             import.osm.ignored_highways: proposed,construction,platform,raceway
             graph.encoded_values: car_access, car_average_speed
@@ -56,7 +57,7 @@ jobs:
           EOF
 
       - name: Generar graph-cache (rutas reales calle por calle)
-        run: java -Xmx6g -Ddw.graphhopper.datareader.file=cuba-latest.osm.pbf -jar graphhopper-web.jar import gh-config.yml
+        run: java -Xmx6g -jar graphhopper-web.jar import gh-config.yml
 
       - name: Comprimir graph-cache
         run: zip -rq graph-cache.zip graph-cache
