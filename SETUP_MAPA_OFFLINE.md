@@ -1,5 +1,43 @@
 # Cómo generar el mapa 3D real de Cuba (offline)
 
+## 0. Si SOLO tienes el teléfono (sin PC) — usa GitHub Actions
+
+Compilar la APK y generar `cuba.mbtiles`/`graph-cache` normalmente pide una computadora
+(Android Studio, varios GB de RAM libres). Como ya subiste el proyecto a GitHub, hay una
+forma de hacer todo eso gratis en los servidores de GitHub y descargar el resultado
+directo al teléfono — nunca instalas Android Studio ni nada pesado.
+
+Ya dejé dos "workflows" listos en `.github/workflows/`. Para activarlos:
+
+1. Desde Termux, dentro de `~/cuba-gps`, sube los cambios que ya tienes (los workflows
+   vienen incluidos en este zip):
+   ```bash
+   git add .
+   git commit -m "Agregar compilacion automatica en GitHub Actions"
+   git push
+   ```
+2. Abre en el navegador del teléfono: `github.com/wolfgamk5/Cuba-GPS-Offline/actions`
+3. Verás dos workflows en la lista de la izquierda:
+   - **"Generar mapa y rutas de Cuba"** → tócalo → botón **"Run workflow"** → "Run workflow"
+     otra vez para confirmar. Tarda unos 10-20 minutos (descarga el `.osm.pbf`, genera el
+     mapa y las rutas). Al terminar, publica un **Release** con `cuba.mbtiles` y
+     `graph-cache.zip` listos para descargar — búscalo en la pestaña "Releases" del repo,
+     copia las URLs de esos dos archivos (botón derecho / mantener presionado → copiar
+     enlace).
+   - Ve a `Settings > Secrets and variables > Actions > Variables` de tu repo y crea:
+     `CUBA_MBTILES_URL` y `CUBA_GRAPH_CACHE_ZIP_URL` con esas URLs que copiaste (esto es
+     lo mismo que `download.properties`, pero para que lo use GitHub Actions al compilar).
+   - **"Compilar APK"** → tócalo → "Run workflow". Tarda unos 5-10 minutos. Al terminar,
+     entra a esa ejecución y descarga el archivo `cuba-gps-offline-debug-apk` (es un .zip
+     que contiene la APK adentro).
+4. Descomprime ese .zip, abre el `.apk` desde el explorador de archivos del teléfono, y
+   Android te va a pedir permiso para "instalar apps de fuentes desconocidas" — acéptalo
+   solo para esta instalación.
+
+Con eso tienes la app instalada y con el mapa 3D + rutas reales, sin haber usado nunca
+una computadora. Los pasos 1-6 de abajo son la explicación de qué hace cada parte, y
+sirven igual si en algún momento sí consigues acceso a una PC y prefieres hacerlo a mano.
+
 Este chat no tiene acceso a internet ni a Android Studio, así que no puedo descargar los
 datos ni compilar la APK por ti. Ya dejé el código Kotlin listo (carpeta `app/src/main/java/com/example/maps/`)
 para que consuma esos datos en cuanto los generes. Estos son los pasos que **tú** debes hacer,
@@ -125,15 +163,7 @@ Si dejas `download.properties` vacío o no lo creas, el botón de descarga simpl
 aparece y sigue funcionando la opción de copiar los archivos manualmente por USB (Fase 1
 y 2 de esta guía).
 
-## 7. Fase 4 (futuro)
-
-Con mapa 3D, rutas reales y descarga automática resueltos, lo que sigue de forma natural
-es un modo "online" real: cuando haya datos móviles, usar un servidor de tiles/rutas
-remoto en vez de depender solo de los archivos locales (útil para el día que actualicen
-el mapa de Cuba en OSM y no quieras redistribuir el APK). Dime cuando quieras que
-avancemos con eso.
-
-## 8. Fase 4 — Modo online (funciona con o sin datos descargados)
+## 7. Modo online (funciona con o sin datos descargados)
 
 **Mapa online — ya funciona, sin que hagas nada:** si el teléfono tiene internet pero
 todavía no descargó `cuba.mbtiles`, la app usa automáticamente **OpenFreeMap**
@@ -170,7 +200,7 @@ GraphHopper local si ya está descargado, o el motor de 6 carreteras como últim
 Con esto, el orden de prioridad para calcular una ruta queda: **1) GraphHopper local
 (offline, el mejor) → 2) tu servidor OSRM online → 3) motor de respaldo.**
 
-## 9. Aviso importante
+## 8. Aviso importante
 
 El archivo `.mbtiles` de un país completo con edificios y POIs puede ser demasiado
 grande para subir directo a Play Store dentro del APK (límite de 150 MB, o 200 MB con
