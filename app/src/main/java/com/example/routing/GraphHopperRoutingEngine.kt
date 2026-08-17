@@ -47,13 +47,12 @@ class GraphHopperRoutingEngine(context: Context) {
      * dependiendo del tamaño del país) — SIEMPRE debe llamarse fuera del hilo principal.
      * Devuelve true si el motor quedó listo para calcular rutas.
      */
-    fun load(): Boolean {
         fun load(): Boolean {
         if (!isAvailable) return false
         return try {
             val gh = GraphHopper()
             gh.graphHopperLocation = graphCacheDir.absolutePath
-            gh.dataAccessType = "MMAP" // <-- Agrega esta línea aquí (línea 43)
+            gh.dataAccessType = "MMAP"
             gh.setEncodedValuesString("car_access, car_average_speed, road_access, road_environment, max_speed")
             gh.setProfiles(Profile("car").setCustomModel(GHUtility.loadCustomModelFromJar("car.json")))
             gh.importOrLoad()
