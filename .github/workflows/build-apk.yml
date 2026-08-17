@@ -22,6 +22,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Instalar Gradle 9.1.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.1.0'
+
       # Opcional: si ya generaste cuba.mbtiles / graph-cache.zip con el workflow
       # "Generar mapa y rutas de Cuba" y configuraste las Variables del repositorio
       # (Settings > Secrets and variables > Actions > Variables), esas URLs quedan
@@ -33,11 +38,8 @@ jobs:
           echo "CUBA_GRAPH_CACHE_ZIP_URL=${{ vars.CUBA_GRAPH_CACHE_ZIP_URL }}" >> download.properties
           echo "ONLINE_ROUTING_BASE_URL=${{ vars.ONLINE_ROUTING_BASE_URL }}" >> download.properties
 
-      - name: Dar permisos de ejecución a gradlew
-        run: chmod +x gradlew
-
       - name: Compilar APK de depuración
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Subir la APK como resultado descargable
         uses: actions/upload-artifact@v4
