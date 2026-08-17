@@ -42,6 +42,7 @@ jobs:
           graphhopper:
             graph.location: graph-cache
             import.osm.ignored_highways: proposed,construction,platform,raceway
+            graph.encoded_values: car_access, car_average_speed
             profiles:
               - name: car
                 custom_model:
@@ -53,7 +54,6 @@ jobs:
                       limit_to: "car_average_speed"
                   distance_influence: 200
           EOF
-      
 
       - name: Generar graph-cache (rutas reales calle por calle)
         run: java -Xmx6g -Ddw.graphhopper.datareader.file=cuba-latest.osm.pbf -jar graphhopper-web.jar import gh-config.yml
