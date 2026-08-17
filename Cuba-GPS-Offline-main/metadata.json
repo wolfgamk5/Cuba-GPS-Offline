@@ -1,0 +1,6 @@
+{
+  "name": "Cuba GPS Offline",
+  "description": "Navegador GPS 100% offline para Cuba con mapa interactivo, cálculo de rutas, guía de voz y puntos de interés.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
