@@ -5,6 +5,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
+import org.maplibre.android.MapLibre
+import org.maplibre.android.WellKnownTileServer
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -29,6 +31,16 @@ class CrashLoggingApplication : Application() {
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
         instalarManejador(base)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // MapLibre EXIGE que esto se llame antes de crear cualquier MapView. Hacerlo aquí,
+        // una sola vez al arrancar la app, evita el crash "Using MapView requires calling
+        // MapLibre.getInstance(...) before inflating or creating the view" — llamarlo dentro
+        // de la pantalla del mapa no es confiable porque Compose puede componer (y crear el
+        // MapView) en una subcomposición antes de que esa línea llegue a ejecutarse.
+        MapLibre.getInstance(this, null, WellKnownTileServer.MapLibre)
     }
 
     private fun instalarManejador(context: Context) {

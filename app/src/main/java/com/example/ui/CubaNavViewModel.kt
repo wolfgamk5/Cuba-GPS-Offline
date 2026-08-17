@@ -33,6 +33,7 @@ data class CubaNavUiState(
     val destination: GeoPoint = CubaGeographyData.CITIES.first { it.name == "Varadero" },
     val activeRoute: RouteResult? = null,
     val isNavigating: Boolean = false,
+    val isSimulating: Boolean = false,
     val isVoiceMuted: Boolean = false,
     val isNightMode: Boolean = true,
     val showPois: Boolean = true,
@@ -42,6 +43,7 @@ data class CubaNavUiState(
     val speedLimitKmh: Int = 100,
     val showPoiDialog: Boolean = false,
     val showOfflineMapsDialog: Boolean = false,
+    val showPlayStoreGuideDialog: Boolean = false,
     val showStepsDialog: Boolean = false,
     val isRealRoutingReady: Boolean = false,
     val hasOfflineMapData: Boolean = false,
@@ -185,18 +187,36 @@ class CubaNavViewModel(application: Application) : AndroidViewModel(application)
         val route = _uiState.value.activeRoute ?: return
         locationTracker.startRealTracking()
         _uiState.update {
-            it.copy(isNavigating = true)
+            it.copy(
+                isNavigating = true,
+                isSimulating = false
+            )
         }
 
         voiceManager.speak("Iniciando navegación hacia ${route.destination.name}. Distancia: ${route.totalDistanceKm} kilómetros.")
     }
 
+    fun startSimulation() {
+        val route = _uiState.value.activeRoute ?: return
+        locationTracker.startSimulationAlongRoute(route)
+        _uiState.update {
+            it.copy(
+                isNavigating = true,
+                isSimulating = true
+            )
+        }
+
+        voiceManager.speak("Iniciando simulación de viaje GPS en Cuba hacia ${route.destination.name}.")
+    }
+
     fun stopNavigation() {
         locationTracker.stopTracking()
+        locationTracker.stopSimulation()
         voiceManager.stop()
         _uiState.update {
             it.copy(
                 isNavigating = false,
+                isSimulating = false,
                 currentStepIndex = 0
             )
         }
@@ -221,6 +241,9 @@ class CubaNavViewModel(application: Application) : AndroidViewModel(application)
 
     fun openOfflineMapsDialog() = _uiState.update { it.copy(showOfflineMapsDialog = true) }
     fun closeOfflineMapsDialog() = _uiState.update { it.copy(showOfflineMapsDialog = false) }
+
+    fun openPlayStoreGuideDialog() = _uiState.update { it.copy(showPlayStoreGuideDialog = true) }
+    fun closePlayStoreGuideDialog() = _uiState.update { it.copy(showPlayStoreGuideDialog = false) }
 
     fun openStepsDialog() = _uiState.update { it.copy(showStepsDialog = true) }
     fun closeStepsDialog() = _uiState.update { it.copy(showStepsDialog = false) }

@@ -30,8 +30,21 @@ jobs:
       - name: Descargar Planetiler
         run: wget -q -O planetiler.jar https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
 
+      # Descargamos nosotros mismos los 3 archivos auxiliares que Planetiler necesita
+      # (líneas de costa, polígonos de agua, límites de países), con reintentos y más
+      # tiempo de espera — el --download interno de Planetiler usa un timeout muy corto
+      # (30s) y el servidor de water-polygons a veces tarda más que eso en responder.
+      - name: Descargar recursos auxiliares de Planetiler
+        run: |
+          mkdir -p data/sources
+          wget --tries=5 --timeout=90 -q -O data/sources/natural_earth_vector.sqlite.zip https://naciscdn.org/naturalearth/packages/natural_earth_vector.sqlite.zip
+          wget --tries=5 --timeout=90 -q -O data/sources/lake_centerline.shp.zip https://github.com/acalcutt/osm-lakelines/releases/download/v12/lake_centerline.shp.zip
+          wget --tries=5 --timeout=90 -q -O data/sources/water-polygons-split-3857.zip https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip
+
       - name: Generar cuba.mbtiles (mapa 3D)
-        run: java -Xmx6g -jar planetiler.jar --download --osm-path=cuba-latest.osm.pbf --output=cuba.mbtiles --force
+        # Sin --download: como ya dejamos los 3 archivos auxiliares en data/sources/,
+        # Planetiler los usa directamente en vez de intentar descargarlos de nuevo.
+        run: java -Xmx6g -jar planetiler.jar --osm-path=cuba-latest.osm.pbf --output=cuba.mbtiles --force
 
       - name: Descargar GraphHopper
         run: wget -q -O graphhopper-web.jar https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/10.2/graphhopper-web-10.2.jar

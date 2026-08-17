@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
@@ -36,6 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +78,7 @@ fun RoutePlannerCard(
     onSwapPoints: () -> Unit,
     onCalculateRoute: () -> Unit,
     onStartNavigation: () -> Unit,
+    onStartSimulation: () -> Unit,
     onViewSteps: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -329,6 +332,23 @@ fun RoutePlannerCard(
                         Icon(imageVector = Icons.Default.Navigation, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Navegar GPS", fontWeight = FontWeight.Bold)
+                    }
+
+                    FilledTonalButton(
+                        onClick = onStartSimulation,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("start_sim_btn"),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = NavSurfaceBlue,
+                            contentColor = NavCyan
+                        )
+                    ) {
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Simular", fontWeight = FontWeight.Bold)
                     }
                 }
             }

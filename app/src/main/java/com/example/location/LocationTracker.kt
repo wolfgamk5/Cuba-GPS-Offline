@@ -14,12 +14,17 @@ import android.os.Looper
 import android.util.Log
 import com.example.data.CubaGeographyData
 import com.example.data.GeoPoint
+import com.example.data.RouteResult
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,7 +54,8 @@ class LocationTracker(private val context: Context) : SensorEventListener {
             point = CubaGeographyData.HAVANA_CENTER,
             speedKmh = 0f,
             bearing = 0f,
-            accuracyMeters = 5f
+            accuracyMeters = 5f,
+            isMockOrSimulated = false
         )
     )
     val locationFlow: StateFlow<GpsLocationData> = _locationFlow.asStateFlow()
@@ -58,6 +64,8 @@ class LocationTracker(private val context: Context) : SensorEventListener {
     val compassHeading: StateFlow<Float> = _compassHeading.asStateFlow()
 
     private var isTracking = false
+    private var simulationJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.Default)
 
     // Sensor matrices for compass
     private val accelerometerReading = FloatArray(3)
@@ -68,13 +76,13 @@ class LocationTracker(private val context: Context) : SensorEventListener {
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val location = result.lastLocation ?: return
-            processAndroidLocation(location)
+            processAndroidLocation(location, isSimulated = false)
         }
     }
 
     private val legacyLocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            processAndroidLocation(location)
+            processAndroidLocation(location, isSimulated = false)
         }
         @Deprecated("Deprecated in Java")
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
@@ -99,6 +107,7 @@ class LocationTracker(private val context: Context) : SensorEventListener {
 
     @SuppressLint("MissingPermission")
     fun startRealTracking() {
+        stopSimulation()
         isTracking = true
 
         try {
@@ -141,9 +150,10 @@ class LocationTracker(private val context: Context) : SensorEventListener {
         } catch (e: Exception) {
             // ignore
         }
+        stopSimulation()
     }
 
-    private fun processAndroidLocation(location: Location) {
+    private fun processAndroidLocation(location: Location, isSimulated: Boolean) {
         val speedKmh = if (location.hasSpeed()) (location.speed * 3.6f) else 0f
         val bearing = if (location.hasBearing()) location.bearing else _compassHeading.value
 
@@ -157,7 +167,90 @@ class LocationTracker(private val context: Context) : SensorEventListener {
             speedKmh = (speedKmh * 10).roundToInt() / 10f,
             bearing = bearing,
             accuracyMeters = if (location.hasAccuracy()) location.accuracy else 5f,
+            isMockOrSimulated = isSimulated,
             altitudeMeters = location.altitude
+        )
+    }
+
+    /**
+     * GPS Route Simulation: Drives smoothly along a polyline route for testing navigation anywhere
+     */
+    fun startSimulationAlongRoute(route: RouteResult, speedMultiplier: Float = 1.0f) {
+        stopTracking()
+        stopSimulation()
+
+        val polyline = route.polyline
+        if (polyline.size < 2) return
+
+        simulationJob = scope.launch {
+            var currentSegment = 0
+            var progress = 0.0
+
+            while (currentSegment < polyline.size - 1) {
+                val p1 = polyline[currentSegment]
+                val p2 = polyline[currentSegment + 1]
+                val segDistance = p1.distanceTo(p2)
+                val bearing = p1.bearingTo(p2)
+
+                // Simulated speed: 85 km/h on highways (~23.6 m/s)
+                val targetSpeedKmh = 85f * speedMultiplier
+                val metersPerSecond = (targetSpeedKmh / 3.6f)
+                val updateIntervalSec = 0.5f // update every 500ms
+                val stepMeters = metersPerSecond * updateIntervalSec
+
+                val totalSteps = (segDistance / stepMeters).coerceAtLeast(2.0)
+                var step = 0
+
+                while (step <= totalSteps) {
+                    val ratio = (step / totalSteps).coerceIn(0.0, 1.0)
+                    val simLat = p1.lat + (p2.lat - p1.lat) * ratio
+                    val simLon = p1.lon + (p2.lon - p1.lon) * ratio
+
+                    // Add slight realistic GPS jitter/speed variation
+                    val currentSpeed = (targetSpeedKmh + (Math.sin(step.toDouble()) * 4)).toFloat().coerceAtLeast(30f)
+
+                    _locationFlow.value = GpsLocationData(
+                        point = GeoPoint(simLat, simLon, "Vehículo Simulado"),
+                        speedKmh = (currentSpeed * 10).roundToInt() / 10f,
+                        bearing = bearing,
+                        accuracyMeters = 3.5f,
+                        isMockOrSimulated = true,
+                        altitudeMeters = 24.0 + (step % 5)
+                    )
+
+                    delay(500)
+                    step++
+                }
+
+                currentSegment++
+            }
+
+            // Arrived at destination
+            val dest = polyline.last()
+            _locationFlow.value = GpsLocationData(
+                point = dest,
+                speedKmh = 0f,
+                bearing = _locationFlow.value.bearing,
+                accuracyMeters = 2f,
+                isMockOrSimulated = true
+            )
+        }
+    }
+
+    fun stopSimulation() {
+        simulationJob?.cancel()
+        simulationJob = null
+    }
+
+    fun isSimulating(): Boolean = simulationJob?.isActive == true
+
+    fun setManualLocation(point: GeoPoint) {
+        _locationFlow.value = GpsLocationData(
+            point = point,
+            speedKmh = 0f,
+            bearing = _locationFlow.value.bearing,
+            accuracyMeters = 5f,
+            isMockOrSimulated = true
         )
     }
 
