@@ -19,15 +19,6 @@ import java.io.RandomAccessFile
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
-/**
- * Descarga cuba.mbtiles (mapa 3D real) y graph-cache.zip (rutas reales de GraphHopper) desde
- * las URLs configuradas en download.properties, y descomprime el segundo. Corre como trabajo
- * en primer plano (con notificación) porque son archivos grandes (cientos de MB) y el sistema
- * podría matar procesos en segundo plano antes de terminar.
- *
- * Reanuda descargas parciales con "Range" si la app se cierra o se pierde la conexión a
- * mitad de camino, en vez de volver a empezar desde cero.
- */
 class MapDataDownloadWorker(
     context: Context,
     params: WorkerParameters
@@ -41,38 +32,48 @@ class MapDataDownloadWorker(
     private val mapsDir = File(applicationContext.getExternalFilesDir(null), "maps")
 
     override suspend fun doWork(): Result {
-        setForeground(buildForegroundInfo("Preparando descarga del paquete completo de Cuba…", 0))
+        setForeground(buildForegroundInfo("Preparando descarga de componentes offline...", 0))
         mapsDir.mkdirs()
 
-        val fullPackageUrl = BuildConfig.CUBA_FULL_PACKAGE_URL
-        if (fullPackageUrl.isBlank()) {
-            return Result.failure(workDataOf(KEY_ERROR to "No hay URL configurada para el paquete único (download.properties vacío)"))
-        }
+        val mbtilesUrl = BuildConfig.CUBA_MBTILES_URL
+        val graphUrl = BuildConfig.CUBA_GRAPH_CACHE_ZIP_URL
+        val poisUrl = BuildConfig.CUBA_POIS_SQLITE_URL
 
         try {
-            // 1. Descargar el ZIP único (con soporte de reanudación si se interrumpe)
-            val zipFile = File(mapsDir, "cuba_full_package.zip.part")
-            downloadWithResume(
-                url = fullPackageUrl,
-                destFile = zipFile,
-                phase = PHASE_DOWNLOAD_ZIP
-            )
+            // 1. Descargar MBTiles (Mapa 3D)
+            if (mbtilesUrl.isNotBlank()) {
+                val mbtilesFile = File(mapsDir, "cuba.mbtiles.part")
+                val finalMbtiles = File(mapsDir, "cuba.mbtiles")
+                downloadWithResume(mbtilesUrl, mbtilesFile, finalMbtiles, PHASE_MBTILES)
+            }
 
-            // 2. Descomprimir el paquete completo directamente en la carpeta 'maps'
-            unzip(zipFile, mapsDir, phase = PHASE_UNZIP)
+            // 2. Descargar Graph Cache (Rutas) y descomprimirlo
+            if (graphUrl.isNotBlank()) {
+                val zipFile = File(mapsDir, "graph-cache.zip.part")
+                val finalZip = File(mapsDir, "graph-cache.zip")
+                downloadWithResume(graphUrl, zipFile, finalZip, PHASE_GRAPH)
+                
+                // Descomprimir el caché de rutas en la carpeta correspondiente
+                unzip(finalZip, mapsDir, PHASE_GRAPH)
+                finalZip.delete()
+            }
 
-            // 3. Limpiar el archivo ZIP temporal descargado
-            zipFile.delete()
+            // 3. Descargar POIs si estuviera configurado
+            if (poisUrl.isNotBlank()) {
+                val poisFile = File(mapsDir, "pois.sqlite.part")
+                val finalPois = File(mapsDir, "pois.sqlite")
+                downloadWithResume(poisUrl, poisFile, finalPois, PHASE_POIS)
+            }
 
         } catch (e: Exception) {
-            return Result.retry() // WorkManager reintentará cuando vuelva la red
+            e.printStackTrace()
+            return Result.retry()
         }
 
         return Result.success()
     }
 
-    private suspend fun downloadWithResume(url: String, destFile: File, phase: String) {
-        val partFile = if (destFile.name.endsWith(".part")) destFile else File(destFile.parentFile, "${destFile.name}.part")
+    private suspend fun downloadWithResume(url: String, partFile: File, destFile: File, phase: String) {
         val alreadyDownloaded = if (partFile.exists()) partFile.length() else 0L
 
         val requestBuilder = Request.Builder().url(url)
@@ -81,9 +82,11 @@ class MapDataDownloadWorker(
         }
 
         client.newCall(requestBuilder.build()).execute().use { response ->
-            if (!response.isSuccessful) throw java.io.IOException("HTTP ${response.code} descargando $url")
+            if (!response.isSuccessful && response.code != 206) {
+                throw java.io.IOException("HTTP ${response.code} descargando $url")
+            }
 
-            val isResuming = response.code == 206 // 206 Partial Content
+            val isResuming = response.code == 206
             val body = response.body ?: throw java.io.IOException("Respuesta vacía de $url")
             val contentLength = body.contentLength()
             val totalSize = if (isResuming) alreadyDownloaded + contentLength else contentLength
@@ -109,7 +112,7 @@ class MapDataDownloadWorker(
             }
         }
 
-        if (destFile != partFile) {
+        if (partFile.exists()) {
             partFile.renameTo(destFile)
         }
     }
@@ -144,11 +147,10 @@ class MapDataDownloadWorker(
             )
         )
         val label = when (phase) {
-            PHASE_MBTILES -> "Descargando mapa 3D de Cuba…"
-            PHASE_GRAPH -> "Descargando datos de rutas…"
-            PHASE_UNZIP -> "Preparando rutas offline…"
-            PHASE_POIS -> "Descargando lugares de interés…"
-            else -> "Descargando…"
+            PHASE_MBTILES -> "Descargando mapa 3D de Cuba..."
+            PHASE_GRAPH -> "Descargando datos de rutas..."
+            PHASE_POIS -> "Descargando lugares de interés..."
+            else -> "Descargando..."
         }
         setForeground(buildForegroundInfo("$label $percent%", percent))
     }
@@ -185,10 +187,6 @@ class MapDataDownloadWorker(
         const val KEY_BYTES_TOTAL = "bytes_total"
         const val KEY_ERROR = "error"
 
-        const val PHASE_DOWNLOAD_ZIP = "download_zip"
-        const val PHASE_UNZIP = "unzip"
-        
-        // Constantes añadidas para que el switch de reportProgress no dé error de compilación
         const val PHASE_MBTILES = "mbtiles"
         const val PHASE_GRAPH = "graph"
         const val PHASE_POIS = "pois"
