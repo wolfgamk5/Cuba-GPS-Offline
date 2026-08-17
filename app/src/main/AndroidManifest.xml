@@ -24,6 +24,10 @@
     </queries>
 
     <application
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
         android:name=".CrashLoggingApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
