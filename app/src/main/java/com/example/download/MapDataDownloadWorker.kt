@@ -194,9 +194,5 @@ class MapDataDownloadWorker(
         const val KEY_BYTES_TOTAL = "bytes_total"
         const val KEY_ERROR = "error"
 
-        const val PHASE_MBTILES = "mbtiles"
-        const val PHASE_GRAPH = "graph"
+        const val PHASE_DOWNLOAD_ZIP = "download_zip"
         const val PHASE_UNZIP = "unzip"
-        const val PHASE_POIS = "pois"
-    }
-}
