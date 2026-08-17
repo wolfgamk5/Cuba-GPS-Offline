@@ -65,9 +65,8 @@ android {
     debug { signingConfig = signingConfigs.getByName("debugConfig") }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-    isCoreLibraryDesugaringEnabled = true // requerido por GraphHopper (usa APIs de java.time)
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
   buildFeatures {
     compose = true
@@ -141,7 +140,6 @@ dependencies {
   implementation(libs.nanohttpd)
   // Motor de rutas real calle-por-calle sobre el grafo completo de OSM de Cuba
   implementation(libs.graphhopper.core)
-  coreLibraryDesugaring(libs.android.desugar.jdk.libs)
   implementation(libs.androidx.work.runtime.ktx)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
