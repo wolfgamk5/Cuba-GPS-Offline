@@ -40,46 +40,39 @@ class MapDataDownloadWorker(
 
     private val mapsDir = File(applicationContext.getExternalFilesDir(null), "maps")
 
-    override suspend fun doWork(): Result {
-        setForeground(buildForegroundInfo("Preparando descarga del mapa de Cuba…", 0))
+        override suspend fun doWork(): Result {
+        setForeground(buildForegroundInfo("Preparando descarga del paquete completo de Cuba…", 0))
         mapsDir.mkdirs()
 
-        val mbtilesUrl = BuildConfig.CUBA_MBTILES_URL
-        val graphZipUrl = BuildConfig.CUBA_GRAPH_CACHE_ZIP_URL
-        val poisUrl = BuildConfig.CUBA_POIS_SQLITE_URL
-        if (mbtilesUrl.isBlank() && graphZipUrl.isBlank() && poisUrl.isBlank()) {
-            return Result.failure(workDataOf(KEY_ERROR to "No hay URLs configuradas (download.properties vacío)"))
+        // Cambiamos a una sola URL para el archivo ZIP unificado
+        val fullPackageUrl = BuildConfig.CUBA_FULL_PACKAGE_URL // Asegúrate de definir esto en tu build.gradle.kts / download.properties
+        if (fullPackageUrl.isBlank()) {
+            return Result.failure(workDataOf(KEY_ERROR to "No hay URL configurada para el paquete único (download.properties vacío)"))
         }
 
         try {
-            if (mbtilesUrl.isNotBlank()) {
-                downloadWithResume(
-                    url = mbtilesUrl,
-                    destFile = File(mapsDir, "cuba.mbtiles"),
-                    phase = PHASE_MBTILES
-                )
-            }
-            if (graphZipUrl.isNotBlank()) {
-                val zipFile = File(mapsDir, "graph-cache.zip.part")
-                downloadWithResume(url = graphZipUrl, destFile = zipFile, phase = PHASE_GRAPH)
-                unzip(zipFile, File(mapsDir, "graph-cache"), phase = PHASE_UNZIP)
-                zipFile.delete()
-            }
-            if (poisUrl.isNotBlank()) {
-                downloadWithResume(
-                    url = poisUrl,
-                    destFile = File(mapsDir, "pois.sqlite"),
-                    phase = PHASE_POIS
-                )
-            }
+            // 1. Descargar el ZIP único (con soporte de reanudación si se interrumpe)
+            val zipFile = File(mapsDir, "cuba_full_package.zip.part")
+            downloadWithResume(
+                url = fullPackageUrl,
+                destFile = zipFile,
+                phase = PHASE_DOWNLOAD_ZIP
+            )
+
+            // 2. Descomprimir el paquete completo directamente en la carpeta 'maps'
+            // El ZIP debe contener adentro: cuba.mbtiles, pois.sqlite y la carpeta graph-cache/
+            unzip(zipFile, mapsDir, phase = PHASE_UNZIP)
+
+            // 3. Limpiar el archivo ZIP temporal descargado
+            zipFile.delete()
+
         } catch (e: Exception) {
-            return Result.retry() // WorkManager reintentará cuando vuelva la red (ver constraints)
+            return Result.retry() // WorkManager reintentará cuando vuelva la red
         }
 
         return Result.success()
     }
 
-    /** Descarga con soporte de reanudación: si ya existe un .part parcial, pide el resto con Range. */
     private suspend fun downloadWithResume(url: String, destFile: File, phase: String) {
         val partFile = if (destFile.name.endsWith(".part")) destFile else File(destFile.parentFile, "${destFile.name}.part")
         val alreadyDownloaded = if (partFile.exists()) partFile.length() else 0L
