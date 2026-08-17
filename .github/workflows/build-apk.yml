@@ -27,6 +27,9 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
+      - name: Generar debug.keystore
+        run: keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
       # Opcional: si ya generaste cuba.mbtiles / graph-cache.zip con el workflow
       # "Generar mapa y rutas de Cuba" y configuraste las Variables del repositorio
       # (Settings > Secrets and variables > Actions > Variables), esas URLs quedan
@@ -39,7 +42,7 @@ jobs:
           echo "ONLINE_ROUTING_BASE_URL=${{ vars.ONLINE_ROUTING_BASE_URL }}" >> download.properties
 
       - name: Compilar APK de depuración
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace --no-configuration-cache
 
       - name: Subir la APK como resultado descargable
         uses: actions/upload-artifact@v4
