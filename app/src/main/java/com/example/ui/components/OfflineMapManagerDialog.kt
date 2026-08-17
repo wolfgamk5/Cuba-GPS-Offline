@@ -108,10 +108,15 @@ fun OfflineMapManagerDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+          Spacer(modifier = Modifier.height(14.dp))
 
-                DataItemStatus(
-                    icon = Icons.Default.Map,
+          if (downloadStatus is MapDownloadStatus.Downloading) {
+              OverallDownloadProgress(status = downloadStatus)
+              Spacer(modifier = Modifier.height(14.dp))
+ }
+
+           DataItemStatus(
+               icon = Icons.Default.Map,
                     title = "Mapa 3D (calles, edificios, POIs)",
                     isReady = hasOfflineMapData,
                     isDownloading = downloadStatus is MapDownloadStatus.Downloading &&
