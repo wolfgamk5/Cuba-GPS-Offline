@@ -9,6 +9,7 @@ import com.example.data.TurnType
 import com.graphhopper.GHRequest
 import com.graphhopper.GraphHopper
 import com.graphhopper.config.Profile
+import com.graphhopper.util.GHUtility
 import com.graphhopper.util.Instruction
 import java.io.File
 import java.util.Locale
@@ -51,7 +52,8 @@ class GraphHopperRoutingEngine(context: Context) {
         return try {
             val gh = GraphHopper()
             gh.graphHopperLocation = graphCacheDir.absolutePath
-            gh.setProfiles(Profile("car").setVehicle("car").setWeighting("fastest").setTurnCosts(false))
+            gh.setEncodedValuesString("car_access, car_average_speed, road_access, road_environment, max_speed")
+            gh.setProfiles(Profile("car").setCustomModel(GHUtility.loadCustomModelFromJar("car.json")))
             gh.importOrLoad()
             hopper = gh
             Log.i(TAG, "Grafo de rutas de Cuba cargado desde ${graphCacheDir.absolutePath}")
@@ -84,18 +86,20 @@ class GraphHopperRoutingEngine(context: Context) {
 
         val polyline = path.points.map { GeoPoint(it.lat, it.lon) }
         val steps = path.instructions.mapIndexed { index, instr ->
-            val pointIdx = instr.points.firstOrNull() ?: 0
+            val instrPoints = instr.points
+            val start = instrPoints.firstOrNull()?.let { GeoPoint(it.lat, it.lon) } ?: origin
+            val end = (if (instrPoints.size() > 1) instrPoints.lastOrNull() else instrPoints.firstOrNull())
+                ?.let { GeoPoint(it.lat, it.lon) } ?: destination
             RouteStep(
                 id = "gh_step_$index",
                 instruction = instr.getTurnDescription(translation).ifBlank { instr.name },
                 roadName = instr.name.ifBlank { "Vía sin nombre" },
                 distanceMeters = instr.distance,
                 turnType = mapSign(instr.sign),
-                startPoint = polyline.getOrElse(pointIdx) { origin },
-                endPoint = polyline.getOrElse(pointIdx + 1) { destination }
+                startPoint = start,
+                endPoint = end
             )
         }
-
         val roadNames = path.instructions.mapNotNull { it.name.takeIf(String::isNotBlank) }.distinct()
 
         return RouteResult(
