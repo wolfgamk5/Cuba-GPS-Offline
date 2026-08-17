@@ -37,10 +37,9 @@ jobs:
       # arranca sin datos offline hasta que las descargues (o los generes).
       - name: Preparar download.properties
         run: |
-          echo "CUBA_MBTILES_URL=${{ vars.CUBA_MBTILES_URL }}" >> download.properties
-          echo "CUBA_GRAPH_CACHE_ZIP_URL=${{ vars.CUBA_GRAPH_CACHE_ZIP_URL }}" >> download.properties
-          echo "CUBA_POIS_SQLITE_URL=${{ vars.CUBA_POIS_SQLITE_URL }}" >> download.properties
+          echo "CUBA_FULL_PACKAGE_URL=${{ vars.CUBA_FULL_PACKAGE_URL }}" >> download.properties
           echo "ONLINE_ROUTING_BASE_URL=${{ vars.ONLINE_ROUTING_BASE_URL }}" >> download.properties
+
 
       - name: Compilar APK de depuración
         run: gradle assembleDebug --stacktrace --no-configuration-cache
